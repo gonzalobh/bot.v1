@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tomos.bot · Chat Vocal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --gray-0: #ffffff;
+      --gray-50: #f7f8fa;
+      --gray-100: #f0f1f3;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --accent: #000000;
+    }
+
+    body.dark {
+      --gray-0: #111827;
+      --gray-50: #1f2937;
+      --gray-100: #374151;
+      --gray-200: #4b5563;
+      --gray-300: #6b7280;
+      --gray-400: #9ca3af;
+      --gray-500: #d1d5db;
+      --gray-600: #e5e7eb;
+      --gray-700: #f0f1f3;
+      --gray-800: #f7f8fa;
+      --gray-900: #ffffff;
+      --accent: #ffffff;
+      background: #0b0f19;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter var", system-ui, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-800);
+      display: grid;
+      place-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 24px;
+      transition: background .35s ease;
+      opacity: 0;
+      animation: fadeIn .6s .2s forwards;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, .6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, .8);
+      border-radius: 24px;
+      padding: 48px 40px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .06);
+      max-width: 360px;
+      width: 100%;
+      transition: transform .3s ease, box-shadow .3s ease;
+      position: relative;
+    }
+
+    body.dark .card {
+      background: rgba(31, 41, 55, .6);
+      border: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -.5px;
+      color: var(--gray-900);
+      margin-bottom: 8px;
+    }
+
+    #status {
+      margin-top: 12px;
+      font-size: .95rem;
+      color: var(--gray-600);
+      min-height: 24px;
+      transition: color .3s ease;
+    }
+
+    /* Toggle modo oscuro */
+    .theme-toggle {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--gray-200);
+      border: none;
+      cursor: pointer;
+      display: grid;
+      place-content: center;
+      font-size: 1.2rem;
+      transition: background .3s ease;
+    }
+
+    body.dark .theme-toggle {
+      background: var(--gray-700);
+    }
+
+    /* Canvas WebGL */
+    #waveCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* Visualizador de volumen */
+    #volumeBars {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      height: 32px;
+      align-items: flex-end;
+    }
+
+    .bar {
+      width: 4px;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: height .05s ease;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 8px;
+      font-size: .75rem;
+      color: var(--gray-400);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="waveCanvas"></canvas>
+
+  <div class="card">
+    <button class="theme-toggle" id="themeToggle">🌙</button>
+    <h1>Tomos.bot</h1>
+    <div id="status">Connexion à Tomos…</div>
+    <div id="volumeBars"></div>
+  </div>
+
+  <audio id="assistantAudio" autoplay></audio>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+  <script>
+  const statusEl = document.getElementById('status');
+  const audioEl = document.getElementById('assistantAudio');
+  const body = document.body;
+  const themeToggle = document.getElementById('themeToggle');
+  const waveCanvas = document.getElementById('waveCanvas');
+  const volumeBars = document.getElementById('volumeBars');
+  let pc;
+  let analyser;
+  let dataArray;
+
+const empresa = "tomos";
+const bot = "ritoque";
+
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyC2c3S_NtouIjHPrk5LM5c0DQoTWyBrzH4",
+    authDomain: "timbre-c9547.firebaseapp.com",
+    databaseURL: "https://timbre-c9547-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "timbre-c9547",
+    storageBucket: "timbre-c9547.firebasestorage.app",
+    messagingSenderId: "127064655657",
+    appId: "1:127064655657:web:a4e99dcbc6ab33f32c1938"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.database();
+
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+  }
+
+  // Toggle modo oscuro
+  themeToggle.addEventListener('click', () => {
+    body.classList.toggle('dark');
+    themeToggle.textContent = body.classList.contains('dark') ? '☀️' : '🌙';
+  });
+
+  // WebGL waves (Three.js)
+  function initWaves() {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: waveCanvas, alpha: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+
+    const geom = new THREE.PlaneGeometry(20, 20, 128, 128);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(body.classList.contains('dark') ? '#ffffff' : '#000000') }
+      },
+      vertexShader: `
+        uniform float time;
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          vec3 pos = position;
+          pos.z = sin(pos.x * 2.0 + time) * 0.3 + sin(pos.y * 2.0 + time * 0.8) * 0.2;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          float alpha = 1.0 - length(vUv - 0.5) * 2.0;
+          gl_FragColor = vec4(color, alpha * 0.08);
+        }
+      `,
+      transparent: true,
+      wireframe: true
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    scene.add(mesh);
+    camera.position.z = 8;
+
+    function animate() {
+      mat.uniforms.time.value += 0.02;
+      mat.uniforms.color.value.set(body.classList.contains('dark') ? '#ffffff' : '#000000');
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  }
+
+  // Visualizador de volumen
+  function initVolumeVisualizer(stream) {
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 32;
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    source.connect(analyser);
+
+    // Crear barras
+    volumeBars.innerHTML = '';
+    for (let i = 0; i < bufferLength; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.height = '2px';
+      volumeBars.appendChild(bar);
+    }
+
+    function updateBars() {
+      analyser.getByteFrequencyData(dataArray);
+      const bars = volumeBars.children;
+      for (let i = 0; i < bufferLength; i++) {
+        const h = (dataArray[i] / 255) * 32;
+        bars[i].style.height = `${Math.max(2, h)}px`;
+      }
+      requestAnimationFrame(updateBars);
+    }
+    updateBars();
+  }
+
+  async function startVoiceChat() {
+    try {
+      setStatus('Demande d\'accès au microphone…');
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      initVolumeVisualizer(micStream);
+
+      const ref = db.ref(`empresas/${empresa}/bots/${bot}/config/prompt`);
+      const snap = await ref.get();
+      const systemPrompt = snap.exists() ? snap.val() : '';
+
+      pc = new RTCPeerConnection();
+      micStream.getTracks().forEach(track => pc.addTrack(track, micStream));
+
+      pc.ontrack = event => {
+        const [remoteStream] = event.streams;
+        audioEl.srcObject = remoteStream;
+        setStatus('Connecté. Vous pouvez parler librement.');
+        body.classList.add('speaking');
+        audioEl.onended = () => body.classList.remove('speaking');
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      setStatus('Connexion au bot…');
+      const proxyURL = `https://hotel-chat-proxy.vercel.app/api/session?empresa=${empresa}&bot=${bot}&systemPrompt=${encodeURIComponent(systemPrompt)}`;
+      const tokenResp = await fetch(proxyURL);
+      if (!tokenResp.ok) throw new Error('Erreur lors de l\'obtention du token éphémère');
+
+      const data = await tokenResp.json();
+      const clientSecret = data?.client_secret?.value;
+      if (!clientSecret) throw new Error('Token éphémère invalide');
+
+      const response = await fetch(
+        'https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${clientSecret}`,
+            'Content-Type': 'application/sdp',
+            'OpenAI-Beta': 'realtime=v1'
+          },
+          body: offer.sdp,
+        }
+      );
+
+      if (!response.ok) throw new Error('Erreur de connexion à OpenAI');
+      const answerSdp = await response.text();
+      await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+    } catch (err) {
+      console.error(err);
+      setStatus('❌ Erreur : ' + err.message);
+    }
+  }
+
+  initWaves();
+  startVoiceChat();
+  </script>
+</body>
+</html>
