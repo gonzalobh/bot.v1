@@ -701,6 +701,7 @@
     };
 
     const closeChat = () => {
+      isChatOpen = false;
       frame.classList.remove("is-visible");
       const hideFrame = () => {
         frame.style.display = "none";
@@ -879,9 +880,13 @@
       }
     });
 
-    // 🖱️ Clic en el botón → abrir el chat
+    // 🖱️ Clic en el botón → alternar abrir/cerrar chat
     btn.onclick = () => {
-      openChat();
+      if (isChatOpen) {
+        closeChat();
+      } else {
+        openChat();
+      }
     };
 
     // ⏳ Solicitar estado e ícono periódicamente hasta que responda
