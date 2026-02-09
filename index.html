@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tomos Bot</title>
 
+  <!-- ⚡ OPTIMIZACIONES DE RENDIMIENTO -->
+  <link rel="preconnect" href="https://timbre-c9547-default-rtdb.europe-west1.firebasedatabase.app">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="preload" href="js/core/firebase-config.js" as="script">
+  <link rel="preload" href="css/base.css" as="style">
+
   <!-- Firebase (compat) -->
   
   <!-- Cropper.js -->
@@ -39,6 +47,7 @@
   <div id="pageLoader" class="fixed inset-0 bg-white/95 flex flex-col items-center justify-center z-[9999]">
     <div class="animate-spin rounded-full h-14 w-14 border-[3px] border-gray-300 border-t-gray-900"></div>
     <p id="pageLoaderText" class="mt-4 text-gray-600 text-sm">Loading…</p>
+    <div class="mt-2 text-xs text-gray-400" id="loaderProgress"></div>
   </div>
 
   <!-- Header minimal -->
@@ -1710,16 +1719,66 @@
 </div>
 
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js" defer></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js" defer></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js" defer></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js" defer></script>
 <script src="https://cdn.tailwindcss.com" defer></script>
   <script src="https://unpkg.com/lucide@0.292.0/dist/umd/lucide.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  
+  <!-- ⚡ MÓDULOS CORE OPTIMIZADOS -->
+  <script src="js/core/firebase-config.js"></script>
+  <script src="js/core/listeners-manager.js"></script>
+  <script src="js/core/translation-loader.js"></script>
+  <script src="js/core/firebase-paginator.js"></script>
+  
+  <!-- ⚡ Chart.js - LAZY LOADED solo cuando se necesite -->
+  <script>
+    window.loadChartJS = function() {
+      return new Promise((resolve, reject) => {
+        if (window.Chart) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+  </script>
+  
 <script src="translations.js?v=533209" defer></script>
   <script src="js/ui/ui.js?v=829999924" defer></script>
+  
+  <!-- ⚡ SERVICE WORKER para cache offline -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('✅ Service Worker registered'))
+          .catch(err => console.log('ℹ️ Service Worker not available:', err));
+      });
+    }
+  </script>
+  
+  <!-- ⚡ INICIALIZACIÓN OPTIMIZADA -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const progress = document.getElementById('loaderProgress');
+      if (progress && window.translationLoader) {
+        try {
+          progress.textContent = 'Loading translations...';
+          await window.translationLoader.init();
+          progress.textContent = 'Ready!';
+        } catch (error) {
+          console.error('Translation init error:', error);
+        }
+      }
+    });
+  </script>
 
 
 

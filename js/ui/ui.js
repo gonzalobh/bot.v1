@@ -437,19 +437,10 @@ document.body.removeChild(link);
 URL.revokeObjectURL(url);
 }
 // ====== Firebase config ======
-const FIREBASE_CONFIG = {
-apiKey: "AIzaSyC2c3S_NtouIjHPrk5LM5c0DQoTWyBrzH4",
-authDomain: "timbre-c9547.firebaseapp.com",
-databaseURL: "https://timbre-c9547-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "timbre-c9547",
-storageBucket: "timbre-c9547.firebasestorage.app",
-messagingSenderId: "127064655657",
-appId: "1:127064655657:web:a4e99dcbc6ab33f32c1938"
-};
-if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.database();
-const auth = firebase.auth();
-const storage = firebase.storage();
+// ═══════════════════════════════════════════════════════════════════
+// Firebase ya está configurado en js/core/firebase-config.js
+// Las variables db, auth, storage son globales
+// ═══════════════════════════════════════════════════════════════════
 let firebaseAuthModulePromise = null;
 function loadFirebaseAuthModule() {
 if (!firebaseAuthModulePromise) {
@@ -2022,17 +2013,23 @@ renderDashboardBotsTable();
 }
 });
 const configBotsRef = firebase.database().ref(`empresas/${EMPRESA}/config/bots`);
-configBotsRef.on('value', (snap) => {
-dashboardConfigBotsData = snap.val() || {};
-populateDashboardFilterOptions();
-renderDashboardBotsTable();
-scheduleDashboardRefresh();
-});
+// ⚡ OPTIMIZADO: Usar .once() en lugar de .on() para datos estáticos
+async function loadConfigBots() {
+  const snap = await configBotsRef.once('value');
+  dashboardConfigBotsData = snap.val() || {};
+  populateDashboardFilterOptions();
+  renderDashboardBotsTable();
+  scheduleDashboardRefresh();
+}
+loadConfigBots();
 const repliesRef = firebase.database().ref(`empresas/${EMPRESA}/config/chatReplies`);
-repliesRef.on('value', (snap) => {
-dashboardActiveRepliesCount = countActiveChatReplies(snap.val());
-updateDashboardSummaryText();
-});
+// ⚡ OPTIMIZADO: Usar .once() en lugar de .on() para datos estáticos
+async function loadChatReplies() {
+  const snap = await repliesRef.once('value');
+  dashboardActiveRepliesCount = countActiveChatReplies(snap.val());
+  updateDashboardSummaryText();
+}
+loadChatReplies();
 populateDashboardFilterOptions();
 dashboardMessagesLoading = true;
 updateDashboardSummaryText();
